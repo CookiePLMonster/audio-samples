@@ -1,4 +1,3 @@
-#include "MemoryMgr.h"
 #include "Patterns.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -36,10 +35,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 	{
 		using namespace hook;
 
-		uint32_t streamsCount = *get_pattern<uint32_t>( "0F 84 D5 00 00 00 81 FD ? ? ? ? 0F 83 C9 00 00 00", 8 );
 		char* streamNames = *get_pattern<char*>( "8D 0C 49 01 C1 8D 44 24 04 81 C1", 11 );
+		uint32_t* streamsCountVC = get_pattern<uint32_t>( "0F 84 D5 00 00 00 81 FD ? ? ? ? 0F 83 C9 00 00 00", 8 );
+		uint8_t* streamsCountIII = get_pattern<uint8_t>( "0F 84 2E 03 00 00 80 BC 24 1C 01 00 00 ?", 13 );
 
-		PatchStreams( streamNames, streamsCount );
+		uint32_t numStreams;
+		if ( streamsCountIII != nullptr )
+			numStreams = *streamsCountIII;
+		else if ( streamsCountVC != nullptr )
+			numStreams = *streamsCountVC;
+		else
+			return FALSE; // Not III nor VC?
+
+		PatchStreams( streamNames, numStreams );
 	}
 	return TRUE;
 }
