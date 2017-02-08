@@ -47,6 +47,8 @@ typedef basic_fnv_1<fnv_prime, fnv_offset_basis> fnv_1;
 
 namespace hook
 {
+	const pattern_match pattern::NULL_MATCH(nullptr);
+
 	ptrdiff_t baseAddressDifference;
 
 	// sets the base to the process main base

@@ -58,7 +58,7 @@ namespace hook
 		T* get(ptrdiff_t offset) const
 		{
 			char* ptr = reinterpret_cast<char*>(m_pointer);
-			return reinterpret_cast<T*>(ptr + offset);
+			return ptr != nullptr ? reinterpret_cast<T*>(ptr + offset) : nullptr;
 		}
 
 		template<typename T>
@@ -138,7 +138,7 @@ namespace hook
 				EnsureMatches(UINT32_MAX);
 			}
 
-			return m_matches[index];
+			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
 		}
 
 		inline const pattern_match& get_one()
@@ -163,6 +163,9 @@ namespace hook
 		// define a hint
 		static void hint(uint64_t hash, uintptr_t address);
 #endif
+
+	private:
+		static const pattern_match NULL_MATCH;
 	};
 
 	class module_pattern
