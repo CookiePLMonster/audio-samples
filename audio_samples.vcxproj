@@ -88,7 +88,6 @@
     <ClCompile Include="Patterns.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MemoryMgr.h" />
     <ClInclude Include="Patterns.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
