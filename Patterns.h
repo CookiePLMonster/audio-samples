@@ -23,19 +23,19 @@ namespace hook
 
 	public:
 		inline pattern_match(void* pointer)
+			: m_pointer(pointer)
 		{
-			m_pointer = pointer;
 		}
 
 		template<typename T>
-		T* get(int offset)
+		T* get(ptrdiff_t offset) const
 		{
 			char* ptr = reinterpret_cast<char*>(m_pointer);
 			return reinterpret_cast<T*>(ptr + offset);
 		}
 
 		template<typename T>
-		T* get()
+		T* get() const
 		{
 			return get<T>(0);
 		}
@@ -71,7 +71,7 @@ namespace hook
 	private:
 		bool ConsiderMatch(uintptr_t offset);
 
-		void EnsureMatches(int maxCount);
+		void EnsureMatches(uint32_t maxCount);
 
 	public:
 		template<size_t Len>
@@ -82,7 +82,7 @@ namespace hook
 			Initialize(pattern, Len);
 		}
 
-		inline pattern& count(int expected)
+		inline pattern& count(uint32_t expected)
 		{
 			if (!m_matched)
 			{
@@ -98,23 +98,23 @@ namespace hook
 		{
 			if (!m_matched)
 			{
-				EnsureMatches(INT_MAX);
+				EnsureMatches(UINT32_MAX);
 			}
 
 			return m_matches.size();
 		}
 
-		inline pattern_match& get(int index)
+		inline const pattern_match& get(size_t index)
 		{
 			if (!m_matched)
 			{
-				EnsureMatches(INT_MAX);
+				EnsureMatches(UINT32_MAX);
 			}
 
 			return m_matches[index];
 		}
 
-		inline pattern_match& get_one()
+		inline const pattern_match& get_one()
 		{
 			return count(1).get(0);
 		}
@@ -126,7 +126,7 @@ namespace hook
 		}
 
 		template<typename T = void>
-		inline auto get_first(int offset)
+		inline auto get_first(ptrdiff_t offset)
 		{
 			return get_one().get<T>(offset);
 		}
@@ -157,7 +157,7 @@ namespace hook
 	}
 
 	template<typename T = void, size_t Len>
-	auto get_pattern(const char(&pattern_string)[Len], int offset)
+	auto get_pattern(const char(&pattern_string)[Len], ptrdiff_t offset)
 	{
 		return pattern(pattern_string).get_first<T>(offset);
 	}

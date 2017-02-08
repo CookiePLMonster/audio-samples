@@ -53,8 +53,8 @@ static std::multimap<uint64_t, uintptr_t> g_hints;
 
 static void TransformPattern(const std::string& pattern, std::string& data, std::string& mask)
 {
-	std::stringstream dataStr;
-	std::stringstream maskStr;
+	std::ostringstream dataStr;
+	std::ostringstream maskStr;
 
 	uint8_t tempDigit = 0;
 	bool tempFlag = false;
@@ -77,7 +77,7 @@ static void TransformPattern(const std::string& pattern, std::string& data, std:
 
 			if (!tempFlag)
 			{
-				tempDigit = (thisDigit << 4);
+				tempDigit = uint8_t(thisDigit << 4);
 				tempFlag = true;
 			}
 			else
@@ -109,7 +109,7 @@ public:
 	}
 
 	executable_meta(void* module)
-		: m_begin((uintptr_t)module), m_end(0)
+		: m_begin((uintptr_t)module)
 	{
 		PIMAGE_DOS_HEADER dosHeader = getRVA<IMAGE_DOS_HEADER>(0);
 		PIMAGE_NT_HEADERS ntHeader = getRVA<IMAGE_NT_HEADERS>(dosHeader->e_lfanew);
@@ -117,8 +117,8 @@ public:
 		m_end = m_begin + ntHeader->OptionalHeader.SizeOfCode;
 	}
 
-	inline uintptr_t begin() { return m_begin; }
-	inline uintptr_t end()   { return m_end; }
+	inline uintptr_t begin() const { return m_begin; }
+	inline uintptr_t end() const   { return m_end; }
 };
 
 void pattern::Initialize(const char* pattern, size_t length)
@@ -160,7 +160,7 @@ void pattern::Initialize(const char* pattern, size_t length)
 #endif
 }
 
-void pattern::EnsureMatches(int maxCount)
+void pattern::EnsureMatches(uint32_t maxCount)
 {
 	if (m_matched)
 	{
@@ -171,18 +171,19 @@ void pattern::EnsureMatches(int maxCount)
 	executable_meta executable(m_module);
 
 	// check if SSE 4.2 is supported
-	int cpuid[4];
-	__cpuid(cpuid, 0);
 
 	bool sse42 = false;
 
 	if (m_mask.size() <= 16)
 	{
+		int cpuid[4];
+		__cpuid(cpuid, 0);
+
 		if (cpuid[0] >= 1)
 		{
 			__cpuidex(cpuid, 1, 0);
 
-			sse42 = (cpuid[2] & (1 << 20));
+			sse42 = (cpuid[2] & (1 << 20)) != 0;
 		}
 	}
 
@@ -190,19 +191,16 @@ void pattern::EnsureMatches(int maxCount)
 	{
 #if PATTERNS_USE_HINTS
 		g_hints.insert(std::make_pair(m_hash, address));
+#else
+		(void)address;
 #endif
 
 		return (m_matches.size() == maxCount);
 	};
 
-	LARGE_INTEGER ticks;
-	QueryPerformanceCounter(&ticks);
-
-	uint64_t startTicksOld = ticks.QuadPart;
-
 	if (!sse42)
 	{
-		for (uintptr_t i = executable.begin(); i <= executable.end(); i++)
+		for (uintptr_t i = executable.begin(); i != executable.end(); i++)
 		{
 			if (ConsiderMatch(i))
 			{
@@ -217,15 +215,15 @@ void pattern::EnsureMatches(int maxCount)
 	{
 		__declspec(align(16)) char desiredMask[16] = { 0 };
 
-		for (int i = 0; i < m_mask.size(); i++)
+		for (size_t i = 0; i < m_mask.size(); i++)
 		{
-			desiredMask[i / 8] |= ((m_mask[i] == '?') ? 0 : 1) << (i % 8);
+			desiredMask[i << 3] |= ((m_mask[i] == '?') ? 0 : 1) << (i & 7);
 		}
 
 		__m128i mask = _mm_load_si128(reinterpret_cast<const __m128i*>(desiredMask));
 		__m128i comparand = _mm_loadu_si128(reinterpret_cast<const __m128i*>(m_bytes.c_str()));
 
-		for (uintptr_t i = executable.begin(); i <= executable.end(); i++)
+		for (uintptr_t i = executable.begin(); i != executable.end(); i++)
 		{
 			__m128i value = _mm_loadu_si128(reinterpret_cast<const __m128i*>(i));
 			__m128i result = _mm_cmpestrm(value, 16, comparand, m_bytes.size(), _SIDD_CMP_EQUAL_EACH);
