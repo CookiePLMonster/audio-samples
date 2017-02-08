@@ -14,7 +14,7 @@
 
 namespace hook
 {
-	static ptrdiff_t baseAddressDifference;
+	extern ptrdiff_t baseAddressDifference;
 
 	// sets the base address difference based on an obtained pointer
 	inline void set_base(uintptr_t address)
