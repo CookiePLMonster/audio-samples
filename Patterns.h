@@ -7,7 +7,12 @@
 
 #pragma once
 
-#include "Hooking.h"
+#include "Patterns.h"
+
+#include <cassert>
+#include <vector>
+
+#define PATTERNS_USE_HINTS 0
 
 namespace hook
 {
@@ -42,7 +47,9 @@ namespace hook
 		std::string m_bytes;
 		std::string m_mask;
 
+#if PATTERNS_USE_HINTS
 		uint64_t m_hash;
+#endif
 
 		size_t m_size;
 
@@ -125,8 +132,10 @@ namespace hook
 		}
 
 	public:
+#if PATTERNS_USE_HINTS
 		// define a hint
 		static void hint(uint64_t hash, uintptr_t address);
+#endif
 	};
 
 	class module_pattern

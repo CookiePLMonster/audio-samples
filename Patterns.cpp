@@ -5,26 +5,20 @@
  * regarding licensing.
  */
 
-#include "StdInc.h"
-#include "Hooking.Patterns.h"
-#include <cstdint>
+#include "Patterns.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
 #include <sstream>
+#include <algorithm>
 
-#include <immintrin.h>
+#if PATTERNS_USE_HINTS
+#include <map>
+#endif
 
-static void Citizen_PatternSaveHint(uint64_t hash, uintptr_t hint)
-{
-    fwPlatformString hintsFile = MakeRelativeCitPath(L"citizen\\hints.dat");
-    FILE* hints = _pfopen(hintsFile.c_str(), _P("ab"));
 
-    if (hints)
-    {
-        fwrite(&hash, 1, sizeof(hash), hints);
-        fwrite(&hint, 1, sizeof(hint), hints);
-
-        fclose(hints);
-    }
-}
+#if PATTERNS_USE_HINTS
 
 // from boost someplace
 template <std::uint64_t FnvPrime, std::uint64_t OffsetBasis>
@@ -49,9 +43,13 @@ const std::uint64_t fnv_offset_basis = 14695981039346656037u;
 
 typedef basic_fnv_1<fnv_prime, fnv_offset_basis> fnv_1;
 
+#endif
+
 namespace hook
 {
+#if PATTERNS_USE_HINTS
 static std::multimap<uint64_t, uintptr_t> g_hints;
+#endif
 
 static void TransformPattern(const std::string& pattern, std::string& data, std::string& mask)
 {
@@ -127,7 +125,9 @@ void pattern::Initialize(const char* pattern, size_t length)
 {
 	// get the hash for the base pattern
 	std::string baseString(pattern, length);
+#if PATTERNS_USE_HINTS
 	m_hash = fnv_1()(baseString);
+#endif
 
 	m_matched = false;
 
@@ -136,6 +136,7 @@ void pattern::Initialize(const char* pattern, size_t length)
 
 	m_size = m_mask.size();
 
+#if PATTERNS_USE_HINTS
 	// if there's hints, try those first
 	if (m_module == GetModuleHandle(nullptr))
 	{
@@ -156,6 +157,7 @@ void pattern::Initialize(const char* pattern, size_t length)
 			}
 		}
 	}
+#endif
 }
 
 void pattern::EnsureMatches(int maxCount)
@@ -186,10 +188,9 @@ void pattern::EnsureMatches(int maxCount)
 
 	auto matchSuccess = [&] (uintptr_t address)
 	{
-#if !defined(COMPILING_SHARED_LIBC)
-		Citizen_PatternSaveHint(m_hash, address);
-#endif
+#if PATTERNS_USE_HINTS
 		g_hints.insert(std::make_pair(m_hash, address));
+#endif
 
 		return (m_matches.size() == maxCount);
 	};
@@ -273,6 +274,7 @@ bool pattern::ConsiderMatch(uintptr_t offset)
 	return true;
 }
 
+#if PATTERNS_USE_HINTS
 void pattern::hint(uint64_t hash, uintptr_t address)
 {
 	auto range = g_hints.equal_range(hash);
@@ -287,26 +289,5 @@ void pattern::hint(uint64_t hash, uintptr_t address)
 
 	g_hints.insert(std::make_pair(hash, address));
 }
+#endif
 }
-
-static InitFunction initFunction([] ()
-{
-	std::wstring hintsFile = MakeRelativeCitPath(L"citizen\\hints.dat");
-	FILE* hints = _wfopen(hintsFile.c_str(), L"rb");
-	
-	if (hints)
-	{
-		while (!feof(hints))
-		{
-			uint64_t hash;
-			uintptr_t hint;
-
-			fread(&hash, 1, sizeof(hash), hints);
-			fread(&hint, 1, sizeof(hint), hints);
-
-			hook::pattern::hint(hash, hint);
-		}
-
-		fclose(hints);
-	}
-});
