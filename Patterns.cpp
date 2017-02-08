@@ -47,6 +47,13 @@ typedef basic_fnv_1<fnv_prime, fnv_offset_basis> fnv_1;
 
 namespace hook
 {
+	// sets the base to the process main base
+	void set_base()
+	{
+		set_base((uintptr_t)GetModuleHandle(nullptr));
+	}
+
+
 #if PATTERNS_USE_HINTS
 static std::multimap<uint64_t, uintptr_t> g_hints;
 #endif

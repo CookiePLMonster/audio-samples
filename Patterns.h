@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include "Patterns.h"
-
 #include <cassert>
 #include <vector>
 
@@ -16,6 +14,35 @@
 
 namespace hook
 {
+	static ptrdiff_t baseAddressDifference;
+
+	// sets the base address difference based on an obtained pointer
+	inline void set_base(uintptr_t address)
+	{
+#ifdef _M_IX86
+		uintptr_t addressDiff = (address - 0x400000);
+#elif defined(_M_AMD64)
+		uintptr_t addressDiff = (address - 0x140000000);
+#endif
+
+		// pointer-style cast to ensure unsigned overflow ends up copied directly into a signed value
+		baseAddressDifference = *(ptrdiff_t*)&addressDiff;
+	}
+
+	// sets the base to the process main base
+	void set_base();
+
+	template<typename T>
+	inline T* getRVA(uintptr_t rva)
+	{
+		set_base();
+#ifdef _M_IX86
+		return (T*)(baseAddressDifference + 0x400000 + rva);
+#elif defined(_M_AMD64)
+		return (T*)(0x140000000 + rva);
+#endif
+	}
+
 	class pattern_match
 	{
 	private:
