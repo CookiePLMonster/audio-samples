@@ -180,7 +180,6 @@ void pattern::EnsureMatches(uint32_t maxCount)
 	executable_meta executable(m_module);
 
 	// check if SSE 4.2 is supported
-
 	bool sse42 = false;
 
 	if (m_mask.size() <= 16)
@@ -226,7 +225,7 @@ void pattern::EnsureMatches(uint32_t maxCount)
 
 		for (size_t i = 0; i < m_mask.size(); i++)
 		{
-			desiredMask[i << 3] |= ((m_mask[i] == '?') ? 0 : 1) << (i & 7);
+			desiredMask[i >> 3] |= ((m_mask[i] == '?') ? 0 : 1) << (i & 7);
 		}
 
 		__m128i mask = _mm_load_si128(reinterpret_cast<const __m128i*>(desiredMask));
