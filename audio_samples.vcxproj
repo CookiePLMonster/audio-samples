@@ -89,6 +89,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patterns.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="audio_samples.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
