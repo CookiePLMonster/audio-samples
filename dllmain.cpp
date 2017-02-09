@@ -15,13 +15,25 @@ void PatchStreams( char* streams, uint32_t count )
 	uint32_t entriesRead = 0;
 	for( char* raw = buf; *raw != '\0'; ++raw )
 	{
-		char* stream = streams;
+		char thisStream[MAX_ENTRY_SIZE+1];
+		char* stream = thisStream;
 		for ( size_t i = 0; i < MAX_ENTRY_SIZE; ++i )
 		{
 			*stream++ = *raw++;
 			if ( *raw == '\0' ) break;
 		}
 		*stream = '\0';
+
+		bool rejectEntry = false;
+		if ( *raw != '\0' )
+		{
+			rejectEntry = true;
+			while ( *++raw != '\0' );
+		}
+		if ( !rejectEntry )
+		{
+			strcpy_s( streams, MAX_ENTRY_SIZE+1, thisStream );
+		}
 		streams += MAX_ENTRY_SIZE+1;
 		if ( ++entriesRead >= count ) break;
 	}
