@@ -161,7 +161,7 @@ void pattern::Initialize(const char* pattern, size_t length)
 			});
 
 			// if the hints succeeded, we don't need to do anything more
-			if (m_matches.size() > 0)
+			if (!m_matches.empty())
 			{
 				m_matched = true;
 				return;
@@ -244,7 +244,7 @@ void pattern::EnsureMatches(uint32_t maxCount)
 
 			if (_mm_test_all_zeros(equivalence, equivalence))
 			{
-				m_matches.push_back(pattern_match((void*)i));
+				m_matches.emplace_back((void*)i);
 
 				if (matchSuccess(i))
 				{
@@ -277,7 +277,7 @@ bool pattern::ConsiderMatch(uintptr_t offset)
 		}
 	}
 
-	m_matches.push_back(pattern_match(ptr));
+	m_matches.emplace_back(ptr);
 
 	return true;
 }
