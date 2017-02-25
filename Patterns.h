@@ -72,6 +72,8 @@ namespace hook
 	class pattern
 	{
 	private:
+		static const pattern_match NULL_MATCH;
+
 		std::string m_bytes;
 		std::string m_mask;
 
@@ -100,6 +102,16 @@ namespace hook
 		bool ConsiderMatch(uintptr_t offset);
 
 		void EnsureMatches(uint32_t maxCount);
+
+		inline const pattern_match& _get_internal(size_t index)
+		{
+			return m_matches[index];
+		}
+
+		inline const pattern_match& _get_null_internal(size_t index)
+		{
+			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
+		}
 
 	public:
 		template<size_t Len>
@@ -174,26 +186,11 @@ namespace hook
 			return get_one_null().get_null<T>(offset);
 		}
 
-	private:
-		inline const pattern_match& _get_internal(size_t index)
-		{
-			return m_matches[index];
-		}
-
-		inline const pattern_match& _get_null_internal(size_t index)
-		{
-			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
-		}
-
-
 	public:
 #if PATTERNS_USE_HINTS
 		// define a hint
 		static void hint(uint64_t hash, uintptr_t address);
 #endif
-
-	private:
-		static const pattern_match NULL_MATCH;
 	};
 
 	class module_pattern
