@@ -55,16 +55,17 @@ namespace hook
 		}
 
 		template<typename T>
-		T* get(ptrdiff_t offset) const
+		T* get(ptrdiff_t offset = 0) const
 		{
 			char* ptr = reinterpret_cast<char*>(m_pointer);
-			return ptr != nullptr ? reinterpret_cast<T*>(ptr + offset) : nullptr;
+			return reinterpret_cast<T*>(ptr + offset);
 		}
 
 		template<typename T>
-		T* get() const
+		T* get_null(ptrdiff_t offset = 0) const
 		{
-			return get<T>(0);
+			char* ptr = reinterpret_cast<char*>(m_pointer);
+			return ptr != nullptr ? reinterpret_cast<T*>(ptr + offset) : nullptr;
 		}
 	};
 
@@ -138,6 +139,16 @@ namespace hook
 				EnsureMatches(UINT32_MAX);
 			}
 
+			return m_matches[index];
+		}
+
+		inline const pattern_match& get_null(size_t index)
+		{
+			if (!m_matched)
+			{
+				EnsureMatches(UINT32_MAX);
+			}
+
 			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
 		}
 
@@ -146,16 +157,21 @@ namespace hook
 			return count(1).get(0);
 		}
 
-		template<typename T = void>
-		inline auto get_first()
+		inline const pattern_match& get_one_null()
 		{
-			return get_one().get<T>();
+			return count(1).get_null(0);
 		}
 
 		template<typename T = void>
-		inline auto get_first(ptrdiff_t offset)
+		inline auto get_first(ptrdiff_t offset = 0)
 		{
 			return get_one().get<T>(offset);
+		}
+
+		template<typename T = void>
+		inline auto get_first_null(ptrdiff_t offset = 0)
+		{
+			return get_one_null().get_null<T>(offset);
 		}
 
 	public:
@@ -180,15 +196,16 @@ namespace hook
 		}
 	};
 
+
 	template<typename T = void, size_t Len>
-	auto get_pattern(const char(&pattern_string)[Len])
+	auto get_pattern(const char(&pattern_string)[Len], ptrdiff_t offset = 0)
 	{
-		return pattern(pattern_string).get_first<T>();
+		return pattern(pattern_string).get_first<T>(offset);
 	}
 
 	template<typename T = void, size_t Len>
-	auto get_pattern(const char(&pattern_string)[Len], ptrdiff_t offset)
+	auto get_pattern_null(const char(&pattern_string)[Len], ptrdiff_t offset = 0)
 	{
-		return pattern(pattern_string).get_first<T>(offset);
+		return pattern(pattern_string).get_first_null<T>(offset);
 	}
 }
