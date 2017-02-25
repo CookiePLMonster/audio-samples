@@ -139,7 +139,7 @@ namespace hook
 				EnsureMatches(UINT32_MAX);
 			}
 
-			return m_matches[index];
+			return _get_internal(index);
 		}
 
 		inline const pattern_match& get_null(size_t index)
@@ -149,17 +149,17 @@ namespace hook
 				EnsureMatches(UINT32_MAX);
 			}
 
-			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
+			return _get_null_internal(index);
 		}
 
 		inline const pattern_match& get_one()
 		{
-			return count(1).get(0);
+			return count(1)._get_internal(0);
 		}
 
 		inline const pattern_match& get_one_null()
 		{
-			return count(1).get_null(0);
+			return count(1)._get_null_internal(0);
 		}
 
 		template<typename T = void>
@@ -173,6 +173,18 @@ namespace hook
 		{
 			return get_one_null().get_null<T>(offset);
 		}
+
+	private:
+		inline const pattern_match& _get_internal(size_t index)
+		{
+			return m_matches[index];
+		}
+
+		inline const pattern_match& _get_null_internal(size_t index)
+		{
+			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
+		}
+
 
 	public:
 #if PATTERNS_USE_HINTS
