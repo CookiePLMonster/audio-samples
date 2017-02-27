@@ -60,20 +60,11 @@ namespace hook
 			char* ptr = reinterpret_cast<char*>(m_pointer);
 			return reinterpret_cast<T*>(ptr + offset);
 		}
-
-		template<typename T>
-		T* get_null(ptrdiff_t offset = 0) const
-		{
-			char* ptr = reinterpret_cast<char*>(m_pointer);
-			return ptr != nullptr ? reinterpret_cast<T*>(ptr + offset) : nullptr;
-		}
 	};
 
 	class pattern
 	{
 	private:
-		static const pattern_match NULL_MATCH;
-
 		std::string m_bytes;
 		std::string m_mask;
 
@@ -108,11 +99,6 @@ namespace hook
 			return m_matches[index];
 		}
 
-		inline const pattern_match& _get_null_internal(size_t index)
-		{
-			return !m_matches.empty() ? m_matches[index] : NULL_MATCH;
-		}
-
 	public:
 		template<size_t Len>
 		pattern(const char (&pattern)[Len])
@@ -124,44 +110,26 @@ namespace hook
 
 		inline pattern& count(uint32_t expected)
 		{
-			if (!m_matched)
-			{
-				EnsureMatches(expected);
-			}
-
+			EnsureMatches(expected);
 			assert(m_matches.size() == expected);
-
 			return *this;
 		}
 
 		inline size_t size()
 		{
-			if (!m_matched)
-			{
-				EnsureMatches(UINT32_MAX);
-			}
-
+			EnsureMatches(UINT32_MAX);
 			return m_matches.size();
+		}
+
+		inline bool empty()
+		{
+			return size() == 0;
 		}
 
 		inline const pattern_match& get(size_t index)
 		{
-			if (!m_matched)
-			{
-				EnsureMatches(UINT32_MAX);
-			}
-
+			EnsureMatches(UINT32_MAX);
 			return _get_internal(index);
-		}
-
-		inline const pattern_match& get_null(size_t index)
-		{
-			if (!m_matched)
-			{
-				EnsureMatches(UINT32_MAX);
-			}
-
-			return _get_null_internal(index);
 		}
 
 		inline const pattern_match& get_one()
@@ -169,21 +137,10 @@ namespace hook
 			return count(1)._get_internal(0);
 		}
 
-		inline const pattern_match& get_one_null()
-		{
-			return count(1)._get_null_internal(0);
-		}
-
 		template<typename T = void>
 		inline auto get_first(ptrdiff_t offset = 0)
 		{
 			return get_one().get<T>(offset);
-		}
-
-		template<typename T = void>
-		inline auto get_first_null(ptrdiff_t offset = 0)
-		{
-			return get_one_null().get_null<T>(offset);
 		}
 
 	public:
@@ -210,11 +167,5 @@ namespace hook
 	auto get_pattern(const char(&pattern_string)[Len], ptrdiff_t offset = 0)
 	{
 		return pattern(pattern_string).get_first<T>(offset);
-	}
-
-	template<typename T = void, size_t Len>
-	auto get_pattern_null(const char(&pattern_string)[Len], ptrdiff_t offset = 0)
-	{
-		return pattern(pattern_string).get_first_null<T>(offset);
 	}
 }

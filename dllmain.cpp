@@ -48,14 +48,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 		using namespace hook;
 
 		char* streamNames = *get_pattern<char*>( "8D 0C 49 01 C1 8D 44 24 04 81 C1", 11 );
-		uint32_t* streamsCountVC = get_pattern_null<uint32_t>( "0F 84 D5 00 00 00 81 FD ? ? ? ? 0F 83 C9 00 00 00", 8 );
-		uint8_t* streamsCountIII = get_pattern_null<uint8_t>( "0F 84 2E 03 00 00 80 BC 24 1C 01 00 00", 13 );
+		auto streamsCountVC = pattern( "0F 84 D5 00 00 00 81 FD ? ? ? ? 0F 83 C9 00 00 00" );
+		auto streamsCountIII = pattern( "0F 84 2E 03 00 00 80 BC 24 1C 01 00 00" );
 
 		uint32_t numStreams;
-		if ( streamsCountIII != nullptr )
-			numStreams = *streamsCountIII;
-		else if ( streamsCountVC != nullptr )
-			numStreams = *streamsCountVC;
+		if ( !streamsCountIII.empty() )
+			numStreams = *streamsCountIII.get_first<uint8_t>(13);
+		else if ( !streamsCountVC.empty() )
+			numStreams = *streamsCountVC.get_first<uint32_t>(8);
 		else
 			return FALSE; // Not III nor VC?
 
