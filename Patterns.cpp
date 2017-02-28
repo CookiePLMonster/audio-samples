@@ -10,7 +10,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include <sstream>
 #include <algorithm>
 
 #if PATTERNS_USE_HINTS
@@ -62,9 +61,6 @@ static std::multimap<uint64_t, uintptr_t> g_hints;
 
 static void TransformPattern(const std::string& pattern, std::string& data, std::string& mask)
 {
-	std::ostringstream dataStr;
-	std::ostringstream maskStr;
-
 	uint8_t tempDigit = 0;
 	bool tempFlag = false;
 
@@ -83,8 +79,8 @@ static void TransformPattern(const std::string& pattern, std::string& data, std:
 		}
 		else if (ch == '?')
 		{
-			dataStr << '\x00';
-			maskStr << '?';
+			data.push_back(0);
+			mask.push_back('?');
 		}
 		else if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f'))
 		{
@@ -100,14 +96,11 @@ static void TransformPattern(const std::string& pattern, std::string& data, std:
 				tempDigit |= thisDigit;
 				tempFlag = false;
 
-				dataStr << tempDigit;
-				maskStr << 'x';
+				data.push_back(tempDigit);
+				mask.push_back('x');
 			}
 		}
 	}
-
-	data = dataStr.str();
-	mask = maskStr.str();
 }
 
 class executable_meta
