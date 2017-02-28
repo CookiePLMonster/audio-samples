@@ -103,7 +103,6 @@ namespace hook
 		pattern(const char (&pattern)[Len])
 			: pattern(getRVA<void>(0))
 		{
-
 			Initialize(pattern, Len);
 		}
 
