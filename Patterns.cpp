@@ -68,7 +68,14 @@ static void TransformPattern(const std::string& pattern, std::string& data, std:
 	uint8_t tempDigit = 0;
 	bool tempFlag = false;
 
-	for (auto& ch : pattern)
+	auto tol = [] (char ch) -> uint8_t
+	{
+		if (ch >= 'A' && ch <= 'F') return uint8_t(ch - 'A' + 10);
+		if (ch >= 'a' && ch <= 'f') return uint8_t(ch - 'a' + 10);
+		return uint8_t(ch - '0');
+	};
+
+	for (auto ch : pattern)
 	{
 		if (ch == ' ')
 		{
@@ -81,12 +88,11 @@ static void TransformPattern(const std::string& pattern, std::string& data, std:
 		}
 		else if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f'))
 		{
-			char str[] = { ch, 0 };
-			int thisDigit = strtol(str, nullptr, 16);
+			uint8_t thisDigit = tol(ch);
 
 			if (!tempFlag)
 			{
-				tempDigit = uint8_t(thisDigit << 4);
+				tempDigit = thisDigit << 4;
 				tempFlag = true;
 			}
 			else
@@ -138,8 +144,6 @@ void pattern::Initialize(const char* pattern, size_t length)
 	m_hash = fnv_1()(baseString);
 #endif
 
-	m_matched = false;
-
 	// transform the base pattern from IDA format to canonical format
 	TransformPattern(baseString, m_bytes, m_mask);
 
@@ -179,26 +183,10 @@ void pattern::EnsureMatches(uint32_t maxCount)
 	// scan the executable for code
 	executable_meta executable(m_module);
 
-	// check if SSE 4.2 is supported
-	bool sse42 = false;
-
-	if (m_mask.size() <= 16)
-	{
-		int cpuid[4];
-		__cpuid(cpuid, 0);
-
-		if (cpuid[0] >= 1)
-		{
-			__cpuidex(cpuid, 1, 0);
-
-			sse42 = (cpuid[2] & (1 << 20)) != 0;
-		}
-	}
-
 	auto matchSuccess = [&] (uintptr_t address)
 	{
 #if PATTERNS_USE_HINTS
-		g_hints.insert(std::make_pair(m_hash, address));
+		g_hints.emplace(m_hash, address);
 #else
 		(void)address;
 #endif
@@ -206,50 +194,40 @@ void pattern::EnsureMatches(uint32_t maxCount)
 		return (m_matches.size() == maxCount);
 	};
 
-	if (!sse42)
+	const uint8_t* pattern = reinterpret_cast<const uint8_t*>(m_bytes.c_str());
+	const char* mask = m_mask.c_str();
+	size_t lastWild = m_mask.find_last_of('?');
+
+	ptrdiff_t Last[256];
+
+	std::fill(std::begin(Last), std::end(Last), lastWild == std::string::npos ? -1 : static_cast<ptrdiff_t>(lastWild) );
+
+	for ( ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(m_size); ++i )
 	{
-		for (uintptr_t i = executable.begin(); i != executable.end(); i++)
+		if ( Last[ pattern[i] ] < i )
 		{
-			if (ConsiderMatch(i))
-			{
-				if (matchSuccess(i))
-				{
-					break;
-				}
-			}
+			Last[ pattern[i] ] = i;
 		}
 	}
-	else
+
+	for (uintptr_t i = executable.begin(), end = executable.end() - m_size; i <= end;)
 	{
-		__declspec(align(16)) char desiredMask[16] = { 0 };
+		uint8_t* ptr = reinterpret_cast<uint8_t*>(i);
+		ptrdiff_t j = m_size - 1;
 
-		for (size_t i = 0; i < m_mask.size(); i++)
+		while((j >= 0) && (mask[j] == '?' || pattern[j] == ptr[j])) j--;
+
+		if(j < 0)
 		{
-			desiredMask[i >> 3] |= ((m_mask[i] == '?') ? 0 : 1) << (i & 7);
-		}
+			m_matches.emplace_back(ptr);
 
-		__m128i mask = _mm_load_si128(reinterpret_cast<const __m128i*>(desiredMask));
-		__m128i comparand = _mm_loadu_si128(reinterpret_cast<const __m128i*>(m_bytes.c_str()));
-
-		for (uintptr_t i = executable.begin(); i != executable.end(); i++)
-		{
-			__m128i value = _mm_loadu_si128(reinterpret_cast<const __m128i*>(i));
-			__m128i result = _mm_cmpestrm(value, 16, comparand, m_bytes.size(), _SIDD_CMP_EQUAL_EACH);
-
-			// as the result can match more bits than the mask contains
-			__m128i matches = _mm_and_si128(mask, result);
-			__m128i equivalence = _mm_xor_si128(mask, matches);
-
-			if (_mm_test_all_zeros(equivalence, equivalence))
+			if (matchSuccess(i))
 			{
-				m_matches.emplace_back((void*)i);
-
-				if (matchSuccess(i))
-				{
-					break;
-				}
+				break;
 			}
+			i++;
 		}
+		else i += std::max(1, j - Last[ ptr[j] ]);
 	}
 
 	m_matched = true;
@@ -293,7 +271,7 @@ void pattern::hint(uint64_t hash, uintptr_t address)
 		}
 	}
 
-	g_hints.insert(std::make_pair(hash, address));
+	g_hints.emplace(hash, address);
 }
 #endif
 }

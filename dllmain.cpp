@@ -52,9 +52,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 		auto streamsCountIII = pattern( "0F 84 2E 03 00 00 80 BC 24 1C 01 00 00" );
 
 		uint32_t numStreams;
-		if ( !streamsCountIII.empty() )
+		if ( !streamsCountIII.count_hint(1).empty() )
 			numStreams = *streamsCountIII.get_first<uint8_t>(13);
-		else if ( !streamsCountVC.empty() )
+		else if ( !streamsCountVC.count_hint(1).empty() )
 			numStreams = *streamsCountVC.get_first<uint32_t>(8);
 		else
 			return FALSE; // Not III nor VC?

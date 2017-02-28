@@ -78,12 +78,11 @@ namespace hook
 
 		bool m_matched;
 
-	protected:
 		void* m_module;
 
 	protected:
 		inline pattern(void* module)
-			: m_module(module)
+			: m_module(module), m_matched(false)
 		{
 		}
 
@@ -102,8 +101,8 @@ namespace hook
 	public:
 		template<size_t Len>
 		pattern(const char (&pattern)[Len])
+			: pattern(getRVA<void>(0))
 		{
-			m_module = getRVA<void>(0);
 
 			Initialize(pattern, Len);
 		}
@@ -112,6 +111,12 @@ namespace hook
 		{
 			EnsureMatches(expected);
 			assert(m_matches.size() == expected);
+			return *this;
+		}
+
+		inline pattern& count_hint(uint32_t expected)
+		{
+			EnsureMatches(expected);
 			return *this;
 		}
 
