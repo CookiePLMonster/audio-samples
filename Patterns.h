@@ -10,6 +10,9 @@
 #include <cassert>
 #include <vector>
 
+#pragma warning(push)
+#pragma warning(disable:4201)
+
 #define PATTERNS_USE_HINTS 0
 
 namespace hook
@@ -72,17 +75,28 @@ namespace hook
 		uint64_t m_hash;
 #endif
 
-		size_t m_size;
-
 		std::vector<pattern_match> m_matches;
 
 		bool m_matched;
 
-		void* m_module;
+		union
+		{
+			void* m_module;
+			struct
+			{
+				uintptr_t m_rangeStart;
+				uintptr_t m_rangeEnd;
+			};
+		};
 
 	protected:
 		inline pattern(void* module)
-			: m_module(module), m_matched(false)
+			: m_module(module), m_rangeEnd(0), m_matched(false)
+		{
+		}
+
+		inline pattern(uintptr_t begin, uintptr_t end)
+			: m_rangeStart(begin), m_rangeEnd(end), m_matched(false)
 		{
 		}
 
@@ -93,7 +107,7 @@ namespace hook
 
 		void EnsureMatches(uint32_t maxCount);
 
-		inline const pattern_match& _get_internal(size_t index)
+		inline pattern_match _get_internal(size_t index) const
 		{
 			return m_matches[index];
 		}
@@ -103,20 +117,47 @@ namespace hook
 		pattern(const char (&pattern)[Len])
 			: pattern(getRVA<void>(0))
 		{
-			Initialize(pattern, Len);
+			Initialize(pattern, Len-1);
 		}
 
-		inline pattern& count(uint32_t expected)
+		inline pattern& count(uint32_t expected) &
 		{
 			EnsureMatches(expected);
 			assert(m_matches.size() == expected);
 			return *this;
 		}
 
-		inline pattern& count_hint(uint32_t expected)
+		inline pattern& count_hint(uint32_t expected) &
 		{
 			EnsureMatches(expected);
 			return *this;
+		}
+
+		inline pattern& clear() &
+		{
+			m_matches.clear();
+			m_matched = false;
+			return *this;
+		}
+
+		inline pattern&& count(uint32_t expected) &&
+		{
+			EnsureMatches(expected);
+			assert(m_matches.size() == expected);
+			return std::move(*this);
+		}
+
+		inline pattern&& count_hint(uint32_t expected) &&
+		{
+			EnsureMatches(expected);
+			return std::move(*this);
+		}		
+
+		inline pattern&& clear() &&
+		{
+			m_matches.clear();
+			m_matched = false;
+			return std::move(*this);
 		}
 
 		inline size_t size()
@@ -130,15 +171,15 @@ namespace hook
 			return size() == 0;
 		}
 
-		inline const pattern_match& get(size_t index)
+		inline pattern_match get(size_t index)
 		{
 			EnsureMatches(UINT32_MAX);
 			return _get_internal(index);
 		}
 
-		inline const pattern_match& get_one()
+		inline pattern_match get_one()
 		{
-			return count(1)._get_internal(0);
+			return std::forward<pattern>(*this).count(1)._get_internal(0);
 		}
 
 		template<typename T = void>
@@ -162,7 +203,19 @@ namespace hook
 		module_pattern(void* module, const char(&pattern)[Len])
 			: pattern(module)
 		{
-			Initialize(pattern, Len);
+			Initialize(pattern, Len-1);
+		}
+	};
+
+	class range_pattern
+		: public pattern
+	{
+	public:
+		template<size_t Len>
+		range_pattern(uintptr_t begin, uintptr_t end, const char(&pattern)[Len])
+			: pattern(begin, end)
+		{
+			Initialize(pattern, Len-1);
 		}
 	};
 
@@ -173,3 +226,5 @@ namespace hook
 		return pattern(pattern_string).get_first<T>(offset);
 	}
 }
+
+#pragma warning(pop)

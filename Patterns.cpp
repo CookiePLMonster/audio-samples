@@ -11,7 +11,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <algorithm>
-#include "string_view.hpp"
+#include <string_view>
 
 #if PATTERNS_USE_HINTS
 #include <map>
@@ -24,7 +24,7 @@
 template <std::uint64_t FnvPrime, std::uint64_t OffsetBasis>
 struct basic_fnv_1
 {
-	std::uint64_t operator()(libcxx_strviewclone::string_view text) const
+	std::uint64_t operator()(std::string_view text) const
 	{
 		std::uint64_t hash = OffsetBasis;
 		for (auto it : text)
@@ -59,7 +59,7 @@ namespace hook
 static std::multimap<uint64_t, uintptr_t> g_hints;
 #endif
 
-static void TransformPattern(libcxx_strviewclone::string_view pattern, std::string& data, std::string& mask)
+static void TransformPattern(std::string_view pattern, std::string& data, std::string& mask)
 {
 	uint8_t tempDigit = 0;
 	bool tempFlag = false;
@@ -116,13 +116,18 @@ public:
 		return (TReturn*)(m_begin + rva);
 	}
 
-	executable_meta(void* module)
+	explicit executable_meta(void* module)
 		: m_begin((uintptr_t)module)
 	{
 		PIMAGE_DOS_HEADER dosHeader = getRVA<IMAGE_DOS_HEADER>(0);
 		PIMAGE_NT_HEADERS ntHeader = getRVA<IMAGE_NT_HEADERS>(dosHeader->e_lfanew);
 
 		m_end = m_begin + ntHeader->OptionalHeader.SizeOfCode;
+	}
+
+	executable_meta(uintptr_t begin, uintptr_t end)
+		: m_begin(begin), m_end(end)
+	{
 	}
 
 	inline uintptr_t begin() const { return m_begin; }
@@ -133,13 +138,11 @@ void pattern::Initialize(const char* pattern, size_t length)
 {
 	// get the hash for the base pattern
 #if PATTERNS_USE_HINTS
-	m_hash = fnv_1()(libcxx_strviewclone::string_view(pattern, length));
+	m_hash = fnv_1()(std::string_view(pattern, length));
 #endif
 
 	// transform the base pattern from IDA format to canonical format
-	TransformPattern(libcxx_strviewclone::string_view(pattern, length), m_bytes, m_mask);
-
-	m_size = m_mask.size();
+	TransformPattern(std::string_view(pattern, length), m_bytes, m_mask);
 
 #if PATTERNS_USE_HINTS
 	// if there's hints, try those first
@@ -173,7 +176,7 @@ void pattern::EnsureMatches(uint32_t maxCount)
 	}
 
 	// scan the executable for code
-	executable_meta executable(m_module);
+	executable_meta executable = m_rangeStart != 0 && m_rangeEnd != 0 ? executable_meta(m_rangeStart, m_rangeEnd) : executable_meta(m_module);
 
 	auto matchSuccess = [&] (uintptr_t address)
 	{
@@ -188,13 +191,14 @@ void pattern::EnsureMatches(uint32_t maxCount)
 
 	const uint8_t* pattern = reinterpret_cast<const uint8_t*>(m_bytes.c_str());
 	const char* mask = m_mask.c_str();
+	size_t maskSize = m_mask.size();
 	size_t lastWild = m_mask.find_last_of('?');
 
 	ptrdiff_t Last[256];
 
 	std::fill(std::begin(Last), std::end(Last), lastWild == std::string::npos ? -1 : static_cast<ptrdiff_t>(lastWild) );
 
-	for ( ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(m_size); ++i )
+	for ( ptrdiff_t i = 0; i < static_cast<ptrdiff_t>(maskSize); ++i )
 	{
 		if ( Last[ pattern[i] ] < i )
 		{
@@ -202,10 +206,10 @@ void pattern::EnsureMatches(uint32_t maxCount)
 		}
 	}
 
-	for (uintptr_t i = executable.begin(), end = executable.end() - m_size; i <= end;)
+	for (uintptr_t i = executable.begin(), end = executable.end() - maskSize; i <= end;)
 	{
 		uint8_t* ptr = reinterpret_cast<uint8_t*>(i);
-		ptrdiff_t j = m_size - 1;
+		ptrdiff_t j = maskSize - 1;
 
 		while((j >= 0) && (mask[j] == '?' || pattern[j] == ptr[j])) j--;
 
@@ -219,7 +223,7 @@ void pattern::EnsureMatches(uint32_t maxCount)
 			}
 			i++;
 		}
-		else i += std::max(1, j - Last[ ptr[j] ]);
+		else i += std::max(ptrdiff_t(1), j - Last[ ptr[j] ]);
 	}
 
 	m_matched = true;
@@ -232,7 +236,7 @@ bool pattern::ConsiderMatch(uintptr_t offset)
 
 	char* ptr = reinterpret_cast<char*>(offset);
 
-	for (size_t i = 0; i < m_size; i++)
+	for (size_t i = 0, j = m_mask.size(); i < j; i++)
 	{
 		if (mask[i] == '?')
 		{
