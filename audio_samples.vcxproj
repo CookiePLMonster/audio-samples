@@ -88,6 +88,7 @@
     <ClCompile Include="Patterns.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DelimStringReader.h" />
     <ClInclude Include="Patterns.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

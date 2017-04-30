@@ -1,5 +1,7 @@
 #include "Patterns.h"
 
+#include "DelimStringReader.h"
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -9,36 +11,22 @@ void PatchStreams( char* streams, uint32_t count )
 	const size_t SCRATCH_PAD_SIZE = 32767;
 	const size_t MAX_ENTRY_SIZE = 24;
 
-	char* buf = new char[ SCRATCH_PAD_SIZE ];
-	GetPrivateProfileSectionA( "Samples", buf, SCRATCH_PAD_SIZE, "audio/audio-samples.ini" );
+	DelimStringReader reader( SCRATCH_PAD_SIZE );
+
+	GetPrivateProfileSectionA( "Samples", reader.GetBuffer(), reader.GetSize(), "audio/audio-samples.ini" );
 
 	uint32_t entriesRead = 0;
-	for( char* raw = buf; *raw != '\0'; ++raw )
-	{
-		char thisStream[MAX_ENTRY_SIZE+1];
-		char* stream = thisStream;
-		for ( size_t i = 0; i < MAX_ENTRY_SIZE; ++i )
-		{
-			*stream++ = *raw++;
-			if ( *raw == '\0' ) break;
-		}
-		*stream = '\0';
+	size_t entryLength = 0;
 
-		bool rejectEntry = false;
-		if ( *raw != '\0' )
+	while ( const char* str = reader.GetString( &entryLength ) )
+	{
+		if ( entryLength <= MAX_ENTRY_SIZE )
 		{
-			rejectEntry = true;
-			while ( *++raw != '\0' );
-		}
-		if ( !rejectEntry )
-		{
-			strcpy_s( streams, MAX_ENTRY_SIZE+1, thisStream );
+			strcpy_s( streams, MAX_ENTRY_SIZE+1, str );
 		}
 		streams += MAX_ENTRY_SIZE+1;
 		if ( ++entriesRead >= count ) break;
 	}
-
-	delete[] buf;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
