@@ -31,6 +31,9 @@ void PatchStreams( char* streams, uint32_t count )
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 {
+	(void)hModule;
+	(void)lpReserved;
+
 	if ( reason == DLL_PROCESS_ATTACH)
 	{
 		using namespace hook;
